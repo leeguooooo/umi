@@ -1,6 +1,7 @@
 import { ApplyPluginsType, Plugin, Router } from '@umijs/runtime';
-import React, { useEffect } from 'react';
-import { hydrate, render } from 'react-dom';
+import React, { useEffect, version as reactVersion } from 'react';
+import { Container } from 'react-dom';
+import * as ReactDOMClient from 'react-dom/client';
 import { matchRoutes, RouteConfig } from 'react-router-config';
 import { IRoute } from '..';
 import renderRoutes from '../renderRoutes/renderRoutes';
@@ -110,6 +111,27 @@ export default function renderClient(opts: IOpts) {
     },
   });
 
+  // 兼容 react version 18.x
+  const CompatibilityReactDomRender = (
+    rootElement: Container | null,
+    callback: (() => void) | undefined,
+  ) => {
+    if (reactVersion.startsWith('18')) {
+      // @ts-ignore
+      ReactDOMClient[window.g_useSSR ? 'hydrateRoot' : 'createRoot'](
+        rootElement,
+        callback,
+      ).render(rootContainer);
+    } else {
+      // @ts-ignore
+      ReactDOM[window.g_useSSR ? 'hydrate' : 'render'](
+        rootContainer,
+        rootElement,
+        callback,
+      );
+    }
+  };
+
   if (opts.rootElement) {
     const rootElement =
       typeof opts.rootElement === 'string'
@@ -117,19 +139,14 @@ export default function renderClient(opts: IOpts) {
         : opts.rootElement;
     const callback = opts.callback || (() => {});
 
-    // flag showing SSR successed
-    if (window.g_useSSR) {
-      if (opts.dynamicImport) {
-        // dynamicImport should preload current route component
-        // first loades);
-        preloadComponent(opts.routes).then(function () {
-          hydrate(rootContainer, rootElement, callback);
-        });
-      } else {
-        hydrate(rootContainer, rootElement, callback);
-      }
+    if (opts.dynamicImport) {
+      // dynamicImport should preload current route component
+      // first loades);
+      preloadComponent(opts.routes).then(function () {
+        CompatibilityReactDomRender(rootElement, callback);
+      });
     } else {
-      render(rootContainer, rootElement, callback);
+      CompatibilityReactDomRender(rootElement, callback);
     }
   } else {
     return rootContainer;

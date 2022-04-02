@@ -1,6 +1,6 @@
 import { ApplyPluginsType, Plugin } from '@umijs/runtime';
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
+import * as ReactDOMClient from 'react-dom/client';
 
 interface IOpts {
   routes: any[];
@@ -63,12 +63,20 @@ export function renderClient(opts: IOpts): any {
         ? document.getElementById(opts.rootElement)
         : opts.rootElement;
     const callback = opts.callback || (() => {});
-    // @ts-ignore
-    ReactDOM[window.g_useSSR ? 'hydrate' : 'render'](
-      rootContainer,
-      rootElement,
-      callback,
-    );
+    // 支持 react 18.x
+    if (React.version && React.version.startsWith('18')) {
+      // @ts-ignore
+      ReactDOMClient[window.g_useSSR ? 'hydrateRoot' : 'createRoot'](
+        rootContainer,
+      ).render(rootElement, callback);
+    } else {
+      // @ts-ignore
+      ReactDOM[window.g_useSSR ? 'hydrate' : 'render'](
+        rootContainer,
+        rootElement,
+        callback,
+      );
+    }
   } else {
     return rootContainer;
   }
